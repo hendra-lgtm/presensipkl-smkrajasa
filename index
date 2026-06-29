@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMK RAJASA - Presensi PKL Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome untuk Ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .bg-gradient-blue { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); }
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1/1;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        #photoPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        .shutter-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70px;
+            height: 70px;
+            background: white;
+            border-radius: 50%;
+            padding: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: none;
+        }
+        .shutter-btn div {
+            width: 100%;
+            height: 100%;
+            background: #ef4444;
+            border-radius: 50%;
+            transition: transform 0.1s;
+        }
+        .shutter-btn:active div { transform: scale(0.9); }
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.9);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- HALAMAN LOGIN -->
+    <div id="loginPage" class="flex flex-col items-center justify-center min-h-screen p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-lg p-8 flex flex-col items-center text-center">
+            <div class="mb-6">
+                <img src="https://lh3.googleusercontent.com/d/1Z7MdnGKOzKeb2I_Zr9Ej5Ldi7RxPauKn" 
+                     alt="Logo SMK RAJASA" 
+                     class="w-24 h-24 object-contain"
+                     onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/2602/2602414.png';">
+            </div>
+
+            <h1 class="text-2xl font-bold text-gray-800">SMK RAJASA</h1>
+            <p class="text-gray-500 text-sm mb-8 font-medium">Sistem Presensi PKL Digital</p>
+
+            <div class="w-full text-left">
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Identitas Siswa</label>
+                <div class="relative mb-2">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500">
+                        <i class="fa-solid fa-address-card"></i>
+                    </span>
+                    <input type="number" id="loginNisn" placeholder="Masukkan NISN..." 
+                           class="w-full pl-12 pr-4 py-4 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none text-gray-700 transition-all">
+                </div>
+                <p class="text-[10px] text-gray-400 text-center mb-6">Pastikan NISN sesuai data sekolah</p>
+            </div>
+
+            <button onclick="handleLogin()" 
+                    class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition-all">
+                Masuk Aplikasi <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+            <p class="text-[10px] text-gray-300 mt-8 tracking-widest uppercase">SMK RAJASA Surabaya</p>
+        </div>
+    </div>
+
+    <!-- HALAMAN FORMULIR -->
+    <div id="mainPage" class="hidden flex flex-col min-h-screen max-w-md mx-auto bg-white shadow-2xl relative">
+        <div class="bg-gradient-blue p-5 flex items-center justify-between text-white rounded-b-3xl shadow-lg">
+            <button onclick="handleLogout()" class="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all">
+                <i class="fa-solid fa-arrow-left"></i> KELUAR
+            </button>
+            <div class="text-center">
+                <h2 class="font-bold text-sm tracking-wide">SMK RAJASA</h2>
+                <p class="text-[10px] opacity-80 uppercase font-medium">Formulir Absensi</p>
+            </div>
+            <div class="w-10 flex justify-end">
+                <img src="https://lh3.googleusercontent.com/d/1Z7MdnGKOzKeb2I_Zr9Ej5Ldi7RxPauKn" 
+                     alt="Logo" class="w-8 h-8 object-contain brightness-110">
+            </div>
+        </div>
+
+        <div class="p-5 space-y-6 overflow-y-auto flex-grow pb-10">
+            
+            <!-- Detail Data -->
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 block">Nama Lengkap</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-blue-300"></i>
+                        <input type="text" id="nama" readonly 
+                               class="w-full pl-10 pr-4 py-3.5 rounded-xl border border-gray-100 bg-gray-50 text-xs font-bold outline-none text-gray-700">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 block">Kelas</label>
+                        <input type="text" id="kelas" readonly 
+                               class="w-full px-4 py-3.5 rounded-xl border border-gray-100 bg-gray-50 text-xs font-bold outline-none text-gray-700">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 block">NISN</label>
+                        <input type="number" id="nisn" readonly 
+                               class="w-full px-4 py-3.5 rounded-xl border border-gray-100 bg-gray-50 text-xs font-bold outline-none text-gray-700">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lokasi GPS -->
+            <div class="border border-blue-100 rounded-2xl p-4 bg-blue-50/30">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-2 text-blue-800 text-[10px] font-black uppercase">
+                        <i class="fa-solid fa-location-dot text-blue-500"></i> Koordinat Lokasi
+                    </div>
+                    <button onclick="getLocation()" class="text-blue-600 text-[10px] font-bold hover:underline">Update GPS</button>
+                </div>
+                <div class="bg-white border border-blue-50 rounded-xl p-3 text-center shadow-sm">
+                    <p id="locationText" class="text-xs text-gray-400 italic">Mencari koordinat...</p>
+                </div>
+            </div>
+
+            <!-- Kamera Selfie -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Verifikasi Foto (Selfie)</label>
+                <div class="video-container shadow-2xl">
+                    <p class="absolute top-4 right-4 text-[9px] text-white/50 z-10 font-mono bg-black/20 px-2 py-0.5 rounded">Mode: Kamera</p>
+                    <video id="video" autoplay playsinline></video>
+                    <img id="photoPreview">
+                    <button type="button" id="shutter" class="shutter-btn" onclick="takePhoto()">
+                        <div></div>
+                    </button>
+                    <button id="retakeBtn" onclick="retakePhoto()" 
+                            class="hidden absolute bottom-6 right-6 bg-red-600 text-white px-4 py-2 rounded-full text-[10px] font-black shadow-xl flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-left"></i> GANTI FOTO
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tombol Status (Pindah ke bawah) -->
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block text-center">Pilih Status Kehadiran</label>
+                <div class="flex p-1.5 bg-gray-100 rounded-2xl gap-1 mb-4">
+                    <button type="button" id="btnMasuk" onclick="setStatus('Masuk')" 
+                            class="flex-1 py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all bg-blue-600 text-white shadow-md">
+                        <i class="fa-solid fa-right-to-bracket"></i> Masuk
+                    </button>
+                    <button type="button" id="btnPulang" onclick="setStatus('Pulang')" 
+                            class="flex-1 py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all text-gray-500">
+                        <i class="fa-solid fa-right-from-bracket"></i> Pulang
+                    </button>
+                </div>
+
+                <button id="submitBtn" onclick="sendData()" disabled
+                        class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> KIRIM ABSENSI
+                </button>
+            </div>
+
+            <!-- Riwayat Absensi -->
+            <div class="mt-8 border-t border-gray-100 pt-6">
+                <div class="flex items-center gap-2 mb-4 text-gray-800">
+                    <i class="fa-solid fa-clock-rotate-left text-blue-600"></i>
+                    <h3 class="font-bold text-sm uppercase tracking-wide">Riwayat Absensi Anda</h3>
+                </div>
+                <div id="historyList" class="space-y-3">
+                    <div class="text-center py-6 border-2 border-dashed border-gray-100 rounded-2xl">
+                        <p class="text-xs text-gray-300">Belum ada riwayat hari ini</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <div id="loading" class="loading-overlay">
+        <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="font-black text-blue-900 tracking-widest animate-pulse">MEMPROSES DATA...</p>
+    </div>
+
+    <script>
+        /************************************************************************
+         * URL GOOGLE APPS SCRIPT
+         ************************************************************************/
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx9bmV-yZKG0g3TnA_72JvHZIAWIMaXxDKyh4a7tDJ0ZZABVmwpAPUElFt97vMVDutnQQ/exec"; 
+        /************************************************************************/
+
+        const SISWA_DATABASE = [
+            { { nisn: "0087702039", nama: "ADINDA PUTRI APRILIA", kelas: "12 AKL" }
+{ nisn: "0082829176", nama: "AMELIA", kelas: "12 AKL" }
+{ nisn: "0085764205", nama: "AMILIA AGUSTIN", kelas: "12 AKL" }
+{ nisn: "0086298471", nama: "Apnicha Zakia Tafta Kinanti", kelas: "12 AKL" }
+{ nisn: "0088125345", nama: "ASTRID ANDAYANI EKA SAPUTRI", kelas: "12 AKL" }
+{ nisn: "0086453181", nama: "AUDI TUNAS BERLIAN PURWAKHA BASUKI", kelas: "12 AKL" }
+{ nisn: "0076944911", nama: "BAGAS ADI PUTRA", kelas: "12 AKL" }
+{ nisn: "0088121101", nama: "DIA AGUSTINA", kelas: "12 AKL" }
+{ nisn: "0072900711", nama: "DIANDRA SARI DEWI", kelas: "12 AKL" }
+{ nisn: "0082947620", nama: "EMIRA GIZA HUMAIRA", kelas: "12 AKL" }
+{ nisn: "0082109594", nama: "FAI`ZAH ALIFIYAH SOERAYA", kelas: "12 AKL" }
+{ nisn: "3093059038", nama: "GISELA ANANDA HOIRUN NISA", kelas: "12 AKL" }
+{ nisn: "0092435101", nama: "GISELLA SYAHRATU SYITA BUTAR BUTAR", kelas: "12 AKL" }
+{ nisn: "0089349454", nama: "JULIA FRYSI ANJANI WIO", kelas: "12 AKL" }
+{ nisn: "0083369867", nama: "KHUSNUL AMELIA", kelas: "12 AKL" }
+{ nisn: "0086834621", nama: "MELINDA CARCIA DIAZ", kelas: "12 AKL" }
+{ nisn: "3093046282", nama: "Mochamad Iqbal Maualana", kelas: "12 AKL" }
+{ nisn: "0081525813", nama: "NASYWA ASYA AZZAHRA", kelas: "12 AKL" }
+{ nisn: "0089295768", nama: "NATASYA PUTRI DEWI", kelas: "12 AKL" }
+{ nisn: "0078065322", nama: "NAYSILA RAMADHANI", kelas: "12 AKL" }
+{ nisn: "0085535253", nama: "NUR KHOLIFAH AGNA PUTRI", kelas: "12 AKL" }
+{ nisn: "0083612562", nama: "PUTRI ANANDITA", kelas: "12 AKL" }
+{ nisn: "0098978884", nama: "QUEENZA FERNANDA ARTHALYTA SWANARKO", kelas: "12 AKL" }
+{ nisn: "0095861367", nama: "REVA AYU AGUSTIN", kelas: "12 AKL" }
+{ nisn: "0097000347", nama: "Reza Aulia Putri", kelas: "12 AKL" }
+{ nisn: "0081634241", nama: "REZVAN DERYA LAZUARDI", kelas: "12 AKL" }
+{ nisn: "0089437977", nama: "ROSYDIA JIHAN ZABRINA", kelas: "12 AKL" }
+{ nisn: "0087801798", nama: "RULLY YULIANTI", kelas: "12 AKL" }
+{ nisn: "0095813092", nama: "SHAFA AZZAHRA MONICARISSA", kelas: "12 AKL" }
+{ nisn: "0082945730", nama: "Surya Sulistiya Ningsih", kelas: "12 AKL" }
+{ nisn: "0089376735", nama: "THALITA ANGGI SYAHBILA", kelas: "12 AKL" }
+{ nisn: "0085615155", nama: "VERLITA ANGGRAENI", kelas: "12 AKL" }
+{ nisn: "0099811742", nama: "VIOLA ALEXA PUTRI", kelas: "12 AKL" }
+{ nisn: "0083585256", nama: "XENA SYAVIRA PUTRI", kelas: "12 AKL" }
+{ nisn: "0095057027", nama: "ZUHROTUL KHASANAH", kelas: "12 AKL" }
+{ nisn: "0093494099", nama: "AISYAH FEBRIANTI", kelas: "12 MP" }
+{ nisn: "0085881895", nama: "AJENG PUTRI KARTINI", kelas: "12 MP" }
+{ nisn: "0093991162", nama: "Anes Tasya Ghazali", kelas: "12 MP" }
+{ nisn: "0087638679", nama: "ANGGITA TRIYANTI MARETA LIASARI", kelas: "12 MP" }
+{ nisn: "0081161657", nama: "APRISCA MANDA PRATIWI", kelas: "12 MP" }
+{ nisn: "0095310511", nama: "DHEA ALMIRA CAHYA", kelas: "12 MP" }
+{ nisn: "0083541353", nama: "DWI OKTAVIA ANGGRAINI", kelas: "12 MP" }
+{ nisn: "0074249677", nama: "Fadiah", kelas: "12 MP" }
+{ nisn: "0087128215", nama: "FIDIYA ASTUTIK", kelas: "12 MP" }
+{ nisn: "3081581813", nama: "FITRI OKTAVIANI", kelas: "12 MP" }
+{ nisn: "0087567075", nama: "INTAN NURVITHA PRATAMA", kelas: "12 MP" }
+{ nisn: "0085195747", nama: "MAKAYLA HERAWAN", kelas: "12 MP" }
+{ nisn: "0087981528", nama: "MAYLA SHEFA ISABELLA", kelas: "12 MP" }
+{ nisn: "0087537073", nama: "MIFTAHUL JANNAH", kelas: "12 MP" }
+{ nisn: "0089888416", nama: "NAYLA PUTRI RAMADHANI", kelas: "12 MP" }
+{ nisn: "0085704921", nama: "NAZIBA DUROTUL HIKMAH", kelas: "12 MP" }
+{ nisn: "0083839150", nama: "NAZRYAN KAMARUL AZAD", kelas: "12 MP" }
+{ nisn: "0082194205", nama: "NETANOEL MARCHICA NINGSIH", kelas: "12 MP" }
+{ nisn: "0071922198", nama: "Novan Muhamad Said", kelas: "12 MP" }
+{ nisn: "0086421920", nama: "NUR LAILATUL NABILA", kelas: "12 MP" }
+{ nisn: "0081036668", nama: "NUR ROHMANIA SARI", kelas: "12 MP" }
+{ nisn: "3083757491", nama: "PUTRI KARISSA SETIA NINGRUM", kelas: "12 MP" }
+{ nisn: "0082126321", nama: "RATU SEKAR SASI", kelas: "12 MP" }
+{ nisn: "3083529889", nama: "RIZA AYU AMELA", kelas: "12 MP" }
+{ nisn: "0081384629", nama: "SANDYRA ZAKYATUL ISLAMIA", kelas: "12 MP" }
+{ nisn: "0086311935", nama: "SARAH CAMELIA", kelas: "12 MP" }
+{ nisn: "0085138358", nama: "SISI LIANDA SIPAH HERA", kelas: "12 MP" }
+{ nisn: "0081824318", nama: "SITI MUKARROMAH", kelas: "12 MP" }
+{ nisn: "0092820601", nama: "SYIFA ASHILAH PUTRI", kelas: "12 MP" }
+{ nisn: "0084762912", nama: "SYLIVIA ANGGI MAHESTI", kelas: "12 MP" }
+{ nisn: "0081026091", nama: "WULAN RIPKA SARI", kelas: "12 MP" }
+{ nisn: "0088871657", nama: "YULIA TRI ASMANING WATI", kelas: "12 MP" }
+{ nisn: "0082483411", nama: "ZAHRA OKTAFIAN SYAWALIN", kelas: "12 MP" }
+{ nisn: "0086918058", nama: "ZULINDA AULIA PUTRI", kelas: "12 MP" }
+{ nisn: "0086324461", nama: "AGBAR RAFI TRI HAGSANA", kelas: "12 TITL 1" }
+{ nisn: "0085314449", nama: "Akmal Febrian Radhiansyah", kelas: "12 TITL 1" }
+{ nisn: "0088349297", nama: "ALDIANSYAH IAN PRATAMA ASHARI", kelas: "12 TITL 1" }
+{ nisn: "0089804148", nama: "ALIF AULIA ALFAHRIZI", kelas: "12 TITL 1" }
+{ nisn: "0083132765", nama: "AT-THAYA FIRDAUS PERMANA", kelas: "12 TITL 1" }
+{ nisn: "0082368433", nama: "Dani Firmansyah", kelas: "12 TITL 1" }
+{ nisn: "0083305081", nama: "DEVANDRA ALFATHAN NATAMA", kelas: "12 TITL 1" }
+{ nisn: "0085337760", nama: "DIAN ANDIKA PRATAMA", kelas: "12 TITL 1" }
+{ nisn: "0087878624", nama: "DICKY IQBAL IRFANDI", kelas: "12 TITL 1" }
+{ nisn: "0081307160", nama: "DWI ARDITYA PRASETYO", kelas: "12 TITL 1" }
+{ nisn: "0088775913", nama: "GERRY FERDYNAND PATINAYA", kelas: "12 TITL 1" }
+{ nisn: "0087437203", nama: "HAMZAH RAMADHAN KURNIASALI", kelas: "12 TITL 1" }
+{ nisn: "3071898672", nama: "JONATHAN HAFID FAHRIANSAH", kelas: "12 TITL 1" }
+{ nisn: "0082131772", nama: "Lutfi Alfiansyah", kelas: "12 TITL 1" }
+{ nisn: "0092372095", nama: "M. DAFFANI ALFARIZI", kelas: "12 TITL 1" }
+{ nisn: "0088938182", nama: "MAHESWARA DAMAR ADILUHUNG MULYONO", kelas: "12 TITL 1" }
+{ nisn: "0096250620", nama: "MARVELINO ABIYYU HERWIN SYAHPUTRA", kelas: "12 TITL 1" }
+{ nisn: "0099362998", nama: "MOCH. RIFANDAH SAPUTRA", kelas: "12 TITL 1" }
+{ nisn: "0086046272", nama: "MUHAMAD AKBAR ARYA MUJIANTO PUTRA", kelas: "12 TITL 1" }
+{ nisn: "3082062130", nama: "MUHAMMAD ABDULLAH HAIKAL", kelas: "12 TITL 1" }
+{ nisn: "0094947547", nama: "MUHAMMAD FARI ANDRIANSYAH", kelas: "12 TITL 1" }
+{ nisn: "3066038795", nama: "NOVAL ABDI ANSYAH", kelas: "12 TITL 1" }
+{ nisn: "0081010091", nama: "NOVAL PRAYOGA", kelas: "12 TITL 1" }
+{ nisn: "0082266693", nama: "Radhit Fajar Hermawan", kelas: "12 TITL 1" }
+{ nisn: "0081876609", nama: "RAIHAN AZHAR PUTRA WARDANA", kelas: "12 TITL 1" }
+{ nisn: "0084077301", nama: "RENO CANDI PRAKOSO", kelas: "12 TITL 1" }
+{ nisn: "0087840737", nama: "RIZKY RAMADHAN", kelas: "12 TITL 1" }
+{ nisn: "0082782401", nama: "RIZQI PRATAMA RAMADHONI", kelas: "12 TITL 1" }
+{ nisn: "0082340752", nama: "VEREL AFI VALENTINO", kelas: "12 TITL 1" }
+{ nisn: "0079429850", nama: "VINO ALFINDO", kelas: "12 TITL 1" }
+{ nisn: "3095662609", nama: "VIRDO SATRIYA", kelas: "12 TITL 1" }
+{ nisn: "0084705189", nama: "AIRLANGGA NAKULA SADEWA", kelas: "12 TITL 2" }
+{ nisn: "0087460794", nama: "ALFAD FACHRI", kelas: "12 TITL 2" }
+{ nisn: "0083795995", nama: "ALFARIZQI FATHIR OKTAVIAN", kelas: "12 TITL 2" }
+{ nisn: "0081564126", nama: "ANDHIKA SETIA PRIAMBODO", kelas: "12 TITL 2" }
+{ nisn: "0096146445", nama: "ANTA MAULANA PARIKESIT", kelas: "12 TITL 2" }
+{ nisn: "0089139340", nama: "BINTANG RACHMAT DHANI", kelas: "12 TITL 2" }
+{ nisn: "0085749057", nama: "DZAKY ALMER KURNIAWAN", kelas: "12 TITL 2" }
+{ nisn: "0071878160", nama: "FARDHAD AL-KHOIRI", kelas: "12 TITL 2" }
+{ nisn: "3091979636", nama: "FAREL SABILILLAH FIRMANSYAH", kelas: "12 TITL 2" }
+{ nisn: "0098541072", nama: "FATAHILLAH SURYA RAHARJO", kelas: "12 TITL 2" }
+{ nisn: "0087441508", nama: "GALLELO SURYA SANTOSO", kelas: "12 TITL 2" }
+{ nisn: "0092124755", nama: "HAKIM BAHRUL ALAM", kelas: "12 TITL 2" }
+{ nisn: "0089280044", nama: "ILHAM YAHYA", kelas: "12 TITL 2" }
+{ nisn: "0085071286", nama: "M. Akmal Azmi Dafa", kelas: "12 TITL 2" }
+{ nisn: "0074491503", nama: "M. RIZKI DAFA RAMADHAN", kelas: "12 TITL 2" }
+{ nisn: "0081908865", nama: "MAULANA AKHADUN SAIFULLOH", kelas: "12 TITL 2" }
+{ nisn: "0094001616", nama: "MAULANA AZIES FAHCTUR ROHMAN", kelas: "12 TITL 2" }
+{ nisn: "0082783452", nama: "Moch. Noval Oktavian", kelas: "12 TITL 2" }
+{ nisn: "0093524671", nama: "MOCHAMMAD ZEFFRI EFENDI", kelas: "12 TITL 2" }
+{ nisn: "0081904327", nama: "MOHAMMAD ABIMANYU", kelas: "12 TITL 2" }
+{ nisn: "0087587742", nama: "MUHAMMAD ARIEL ARDIANSYAH", kelas: "12 TITL 2" }
+{ nisn: "0097916080", nama: "MUHAMMAD YUSRIL RAMADHAN", kelas: "12 TITL 2" }
+{ nisn: "0085867240", nama: "Niko Febrian Valentino", kelas: "12 TITL 2" }
+{ nisn: "0088596440", nama: "RADITYA ACHMAD AL KAUTSAR", kelas: "12 TITL 2" }
+{ nisn: "0081884850", nama: "RAKABUMI GACO SUGIARTO", kelas: "12 TITL 2" }
+{ nisn: "0086591866", nama: "RIYAN FATURROHMAN", kelas: "12 TITL 2" }
+{ nisn: "0089718513", nama: "RIZKI AHMAD FAUZI", kelas: "12 TITL 2" }
+{ nisn: "0088980527", nama: "RIZKY RADITYA REVANDA PUTRA", kelas: "12 TITL 2" }
+{ nisn: "0081512349", nama: "SULTAN AKUR PRAKOSO", kelas: "12 TITL 2" }
+{ nisn: "0084420740", nama: "Wijaya Kartiko", kelas: "12 TITL 2" }
+{ nisn: "0081462120", nama: "WILDAN BIMA SATYA", kelas: "12 TITL 2" }
+{ nisn: "0089859374", nama: "ZAFRAN FADHIL MAHARDIKA", kelas: "12 TITL 2" }
+{ nisn: "0098199053", nama: "AAHMES RAISTINO PRAYOGO", kelas: "12 TKJ 1" }
+{ nisn: "0082700926", nama: "AGUSTINO ANDHIKA PRATAMA", kelas: "12 TKJ 1" }
+{ nisn: "0076016288", nama: "Akmal Nasrillah", kelas: "12 TKJ 1" }
+{ nisn: "0099145125", nama: "ALCATRAZ PUTRA AGUNG ADITYA", kelas: "12 TKJ 1" }
+{ nisn: "0085297134", nama: "ANDHIKA MAULANA PUTRA", kelas: "12 TKJ 1" }
+{ nisn: "0097765726", nama: "DAVIQ FAQIH AKBARI", kelas: "12 TKJ 1" }
+{ nisn: "0085440995", nama: "DIMAS FAREL RENALDI", kelas: "12 TKJ 1" }
+{ nisn: "0089785168", nama: "DIMAS MAULANA ROSULLI", kelas: "12 TKJ 1" }
+{ nisn: "0089980277", nama: "EVAN ARYA SAPUTRA", kelas: "12 TKJ 1" }
+{ nisn: "0051230107", nama: "EVAN DWI SYAHPUTRA", kelas: "12 TKJ 1" }
+{ nisn: "0085061859", nama: "FACHRI ANUGRA PRATAMA", kelas: "12 TKJ 1" }
+{ nisn: "0087044716", nama: "FAHRI ARYA RAHMADI", kelas: "12 TKJ 1" }
+{ nisn: "0088256637", nama: "FAHRI MIFTAHUL HUDA", kelas: "12 TKJ 1" }
+{ nisn: "0081191581", nama: "GALIH NAUVAN PRASETYO", kelas: "12 TKJ 1" }
+{ nisn: "0096265519", nama: "Irsyad Arrafi Hidayatulloh", kelas: "12 TKJ 1" }
+{ nisn: "0088043278", nama: "M.RENDY ALFIAN GHISAB", kelas: "12 TKJ 1" }
+{ nisn: "0088765720", nama: "MARVEL ALTHAF RADITYA", kelas: "12 TKJ 1" }
+{ nisn: "0088364426", nama: "MOCH. FADHIL RIHADATUL 'AISY", kelas: "12 TKJ 1" }
+{ nisn: "0083495033", nama: "MOCH. GHEFAN ARETHA URIEL CHAFA", kelas: "12 TKJ 1" }
+{ nisn: "0095268227", nama: "MOCH. ROFIQ", kelas: "12 TKJ 1" }
+{ nisn: "0089731087", nama: "MUHAMMAD BILAL MAULANA", kelas: "12 TKJ 1" }
+{ nisn: "0083928733", nama: "Muhammad Hidayah Maulana", kelas: "12 TKJ 1" }
+{ nisn: "0086841972", nama: "MUHAMMAD IRFAN", kelas: "12 TKJ 1" }
+{ nisn: "0087021455", nama: "MUHAMMAD RIZKI", kelas: "12 TKJ 1" }
+{ nisn: "0085292641", nama: "MUHAMMAD SULAIMAN ABDULLAH AL AZIZ", kelas: "12 TKJ 1" }
+{ nisn: "3083579109", nama: "NUHSHON NUR FALAHIN AL-KHOIR", kelas: "12 TKJ 1" }
+{ nisn: "0092779042", nama: "PANDU RIDHO WICAKSONO", kelas: "12 TKJ 1" }
+{ nisn: "0081873524", nama: "RACHMAN DWI NOVAL", kelas: "12 TKJ 1" }
+{ nisn: "0082949218", nama: "RAFIKI NUGRAHA", kelas: "12 TKJ 1" }
+{ nisn: "0089842073", nama: "Raka Galuh Dinata", kelas: "12 TKJ 1" }
+{ nisn: "0084409717", nama: "RANDY ARYASADEWA", kelas: "12 TKJ 1" }
+{ nisn: "0096235399", nama: "RIDHO BEKTI NUR SOFYANSYAH", kelas: "12 TKJ 1" }
+{ nisn: "0088237373", nama: "RIZKY PRADITYA MAULIDAN", kelas: "12 TKJ 1" }
+{ nisn: "3067277110", nama: "Syahrulloh", kelas: "12 TKJ 1" }
+{ nisn: "0087377915", nama: "VIENEL REYHAN CHOIR", kelas: "12 TKJ 1" }
+{ nisn: "0052383825", nama: "Abdul Adhim", kelas: "12 TKJ 2" }
+{ nisn: "0093468010", nama: "ADINDA", kelas: "12 TKJ 2" }
+{ nisn: "0086012960", nama: "ADITIA WICAKSANA PUTRA SANTOSO", kelas: "12 TKJ 2" }
+{ nisn: "0087212283", nama: "ADJENG PUTRI SEPTIANI", kelas: "12 TKJ 2" }
+{ nisn: "0079134009", nama: "AISAH NISWA PUTRI", kelas: "12 TKJ 2" }
+{ nisn: "0084675267", nama: "ALFIAN ANDHIKA PUTRA", kelas: "12 TKJ 2" }
+{ nisn: "0096647612", nama: "ALIF RIZKI WICAKSONO", kelas: "12 TKJ 2" }
+{ nisn: "0084428606", nama: "ANDHIKA NURUL HAIDAR", kelas: "12 TKJ 2" }
+{ nisn: "0089478651", nama: "ARDY ZAVIAN ARMADANI", kelas: "12 TKJ 2" }
+{ nisn: "0083487819", nama: "BAGAS ANDREAN PRATAMA", kelas: "12 TKJ 2" }
+{ nisn: "0089658355", nama: "BIMA RAKA PUTRA", kelas: "12 TKJ 2" }
+{ nisn: "0087681569", nama: "DHITA DWI AMANDA", kelas: "12 TKJ 2" }
+{ nisn: "0089155934", nama: "EKA ANGGUN PRATIWI", kelas: "12 TKJ 2" }
+{ nisn: "0086532686", nama: "FARIS AR RAIHAN", kelas: "12 TKJ 2" }
+{ nisn: "0081427339", nama: "GADIS AULIA SYAKIRA", kelas: "12 TKJ 2" }
+{ nisn: "0089376303", nama: "GIOVANI GERRALD NO", kelas: "12 TKJ 2" }
+{ nisn: "0095454168", nama: "HENVI ATMA WARDANI", kelas: "12 TKJ 2" }
+{ nisn: "0091941561", nama: "MAY DIANA", kelas: "12 TKJ 2" }
+{ nisn: "0087794706", nama: "MOCH. IVAN RAMDHANI", kelas: "12 TKJ 2" }
+{ nisn: "3097270155", nama: "MOH. FAJAR FATHUR ROHMAN", kelas: "12 TKJ 2" }
+{ nisn: "0088250586", nama: "MOHAMMAD JA'FAR A", kelas: "12 TKJ 2" }
+{ nisn: "0071378890", nama: "MUHAMMAD NASZRULLOH", kelas: "12 TKJ 2" }
+{ nisn: "0082076075", nama: "NABIL AHZA SYAWAL", kelas: "12 TKJ 2" }
+{ nisn: "0082001763", nama: "NOVAN RIZKY AMANULLAH", kelas: "12 TKJ 2" }
+{ nisn: "0083534767", nama: "NOVELITA CATUR CAHAYANI", kelas: "12 TKJ 2" }
+{ nisn: "0083480308", nama: "PUTU ARYA BAGUS MAWANDI", kelas: "12 TKJ 2" }
+{ nisn: "0089329424", nama: "QURROTUL AINY PUTRI BRILIANTO", kelas: "12 TKJ 2" }
+{ nisn: "0082731746", nama: "RAFLI BIMANTARA", kelas: "12 TKJ 2" }
+{ nisn: "0094544528", nama: "RAISYA NAYFATHUL MUCHTAR", kelas: "12 TKJ 2" }
+{ nisn: "0095281695", nama: "RIVALDI RAHMANDA PUTRA", kelas: "12 TKJ 2" }
+{ nisn: "0086814264", nama: "SHELA MADJID", kelas: "12 TKJ 2" }
+{ nisn: "0087283091", nama: "SULAIMAN ALFARIZI", kelas: "12 TKJ 2" }
+{ nisn: "0084988781", nama: "TSABITAH ZALFA AZMIDYA", kelas: "12 TKJ 2" }
+{ nisn: "0086555003", nama: "VALEN NOVALIANO BONHAM", kelas: "12 TKJ 2" }
+{ nisn: "0082027691", nama: "ZAHWA NAYLA SYAQIRA", kelas: "12 TKJ 2" }
+{ nisn: "0083584294", nama: "ADEN ISA ZARRAHAN", kelas: "12 TKJ 3" }
+{ nisn: "0085510766", nama: "Ahmad Abyan Athaillah", kelas: "12 TKJ 3" }
+{ nisn: "0082723095", nama: "AHMAD AKBAR", kelas: "12 TKJ 3" }
+{ nisn: "0096253872", nama: "ALFATHUR RIZKY HIDAYATULLAH", kelas: "12 TKJ 3" }
+{ nisn: "0084712149", nama: "Alfian Syahputra", kelas: "12 TKJ 3" }
+{ nisn: "0092695243", nama: "ARYA MAULANA SUSANTO", kelas: "12 TKJ 3" }
+{ nisn: "0073058510", nama: "BAYU SUCI RIZKY ILLAHI", kelas: "12 TKJ 3" }
+{ nisn: "0082839378", nama: "BIMO NUR RASYID", kelas: "12 TKJ 3" }
+{ nisn: "0054094704", nama: "BOBI AGUSTYO PRAYOGA", kelas: "12 TKJ 3" }
+{ nisn: "0085864850", nama: "DENIS PUTRA PRADITA", kelas: "12 TKJ 3" }
+{ nisn: "0088612750", nama: "DIANDHARU BAYU AJI", kelas: "12 TKJ 3" }
+{ nisn: "0087208958", nama: "DYON PUTRA PRAMANA", kelas: "12 TKJ 3" }
+{ nisn: "0081302597", nama: "Fauzan Nur Mochtar", kelas: "12 TKJ 3" }
+{ nisn: "0085597271", nama: "Hendrik Ardiansyah", kelas: "12 TKJ 3" }
+{ nisn: "0099679901", nama: "MA'RUF ABDUL HAFIDZ", kelas: "12 TKJ 3" }
+{ nisn: "0084891250", nama: "Mochamad Al Ridho", kelas: "12 TKJ 3" }
+{ nisn: "0099477123", nama: "MOCHAMMAD IQBAL MAULANA", kelas: "12 TKJ 3" }
+{ nisn: "0095611140", nama: "MUCHAMAD IBNU ROSYID", kelas: "12 TKJ 3" }
+{ nisn: "0097723052", nama: "MUHAMMAD ABYAN", kelas: "12 TKJ 3" }
+{ nisn: "0084601928", nama: "Muhammad Bismika 'Aisy", kelas: "12 TKJ 3" }
+{ nisn: "0088041683", nama: "MUHAMMAD MARKO NURHIDAYAH", kelas: "12 TKJ 3" }
+{ nisn: "0083557612", nama: "Musa Firdaus", kelas: "12 TKJ 3" }
+{ nisn: "0078368354", nama: "NOFAL", kelas: "12 TKJ 3" }
+{ nisn: "0084484691", nama: "Rahul Dhani Prasetya", kelas: "12 TKJ 3" }
+{ nisn: "0076889518", nama: "RAMADHAN", kelas: "12 TKJ 3" }
+{ nisn: "0087489645", nama: "RAYHAN ABI SAPUTRO", kelas: "12 TKJ 3" }
+{ nisn: "0095972181", nama: "RIDHO HABIBURROHMAN", kelas: "12 TKJ 3" }
+{ nisn: "0081522731", nama: "RIZKY RAMADHAN ARTHA WIJAYA", kelas: "12 TKJ 3" }
+{ nisn: "0082478447", nama: "RYU FERNANDITO", kelas: "12 TKJ 3" }
+{ nisn: "0077248526", nama: "RYU SEPTIANSYAH", kelas: "12 TKJ 3" }
+{ nisn: "0082400852", nama: "SATRIA ARUNA RAMADHAN", kelas: "12 TKJ 3" }
+{ nisn: "0083472648", nama: "SYAHRIL RAMADHANI", kelas: "12 TKJ 3" }
+{ nisn: "0093177898", nama: "WAHID ABDI RAMADHAN", kelas: "12 TKJ 3" }
+{ nisn: "0092610069", nama: "WAHYU PERMADI", kelas: "12 TKJ 3" }
+{ nisn: "0081551196", nama: "YUDI SETIAWAN MAULANA", kelas: "12 TKJ 3" }
+{ nisn: "0085438038", nama: "Achmad Choirudin Firmansyah", kelas: "12 TKRO 1" }
+{ nisn: "0086837224", nama: "AFIF ARYA CHANDRA ADI WIYATA", kelas: "12 TKRO 1" }
+{ nisn: "0088592643", nama: "AFRIZA FADHIL AL HAKIM", kelas: "12 TKRO 1" }
+{ nisn: "0091869682", nama: "AL WILDAN MAULANA HARDYAN", kelas: "12 TKRO 1" }
+{ nisn: "0096095845", nama: "Anggit Ilham Pratama Widodo", kelas: "12 TKRO 1" }
+{ nisn: "0081342895", nama: "AZRIEL AL FATHIR FATHONI", kelas: "12 TKRO 1" }
+{ nisn: "0091430557", nama: "CHIKO NOVAL PUTRA RIENCHOLANA", kelas: "12 TKRO 1" }
+{ nisn: "0082389017", nama: "DANNY FAIQ CHESTA GUNAWAN", kelas: "12 TKRO 1" }
+{ nisn: "0087549740", nama: "DIMAS ADI PRAYOGA", kelas: "12 TKRO 1" }
+{ nisn: "0085489468", nama: "Fauzan Aliff", kelas: "12 TKRO 1" }
+{ nisn: "0086602847", nama: "Ibrahimovic Menaya Syahputra", kelas: "12 TKRO 1" }
+{ nisn: "0086553149", nama: "IVAN FIRMANSYAH", kelas: "12 TKRO 1" }
+{ nisn: "0088552458", nama: "JEVA SAPUTRA", kelas: "12 TKRO 1" }
+{ nisn: "0097143346", nama: "JODY SETIAWAN MICHELL", kelas: "12 TKRO 1" }
+{ nisn: "0089031344", nama: "M. FAHRUL ROZI", kelas: "12 TKRO 1" }
+{ nisn: "3080421297", nama: "M. HABIBURROHMAN", kelas: "12 TKRO 1" }
+{ nisn: "0084043851", nama: "MAULANA FERDYANSYAH", kelas: "12 TKRO 1" }
+{ nisn: "0088331201", nama: "MOCH. RAYHAN SAPUTRA", kelas: "12 TKRO 1" }
+{ nisn: "0085138759", nama: "MOCH. YUONO ESTUAJI ELDISAR", kelas: "12 TKRO 1" }
+{ nisn: "0098192358", nama: "MOCHAMMAD ALDIANSYAH DWI WISNU PRATAMA", kelas: "12 TKRO 1" }
+{ nisn: "0085083843", nama: "MOCHAMMAD FATHUR RAIHAN", kelas: "12 TKRO 1" }
+{ nisn: "0084186753", nama: "MUHAMAD APRIAN SUHENDAR", kelas: "12 TKRO 1" }
+{ nisn: "0086722516", nama: "MUHAMMAD ALAUDIN PUTRA AJI SANTOSO", kelas: "12 TKRO 1" }
+{ nisn: "0082178043", nama: "NATHAN GUSTAV TOUFEIL", kelas: "12 TKRO 1" }
+{ nisn: "0086548207", nama: "NAUFAL ARTA FIDYANSYAH", kelas: "12 TKRO 1" }
+{ nisn: "3092632831", nama: "OKTA DWI PRAMULYA", kelas: "12 TKRO 1" }
+{ nisn: "3097066997", nama: "PUTRA RAHMAD DANI", kelas: "12 TKRO 1" }
+{ nisn: "0083130059", nama: "RADHITYA SWARAJAGAT", kelas: "12 TKRO 1" }
+{ nisn: "0087318319", nama: "RENDRA ARYA PRATAMA", kelas: "12 TKRO 1" }
+{ nisn: "0094522908", nama: "REVAL RADITYA SANTOSO", kelas: "12 TKRO 1" }
+{ nisn: "0088100777", nama: "SLAMET AFANDI", kelas: "12 TKRO 1" }
+{ nisn: "0083030580", nama: "Tanaya Ary Adhika Nugraha", kelas: "12 TKRO 1" }
+{ nisn: "0085230730", nama: "Vinza Davinci Setyo Budi", kelas: "12 TKRO 1" }
+{ nisn: "0088976693", nama: "ZOGI AINUL RAHMAD", kelas: "12 TKRO 1" }
+{ nisn: "0089156263", nama: "ACHMAD FEZA HAEKAL", kelas: "12 TKRO 2" }
+{ nisn: "0086212153", nama: "ACHMAD MUJAHID ANSORI", kelas: "12 TKRO 2" }
+{ nisn: "0071169777", nama: "Achmat Faris", kelas: "12 TKRO 2" }
+{ nisn: "3074113173", nama: "ADITYA", kelas: "12 TKRO 2" }
+{ nisn: "0085261297", nama: "AHMAD KHOTIB ARDIANSYAH", kelas: "12 TKRO 2" }
+{ nisn: "0087230839", nama: "Arri Rivhalino Masrumy", kelas: "12 TKRO 2" }
+{ nisn: "0085877776", nama: "AXEL ARDIAN SYAHPUTRA", kelas: "12 TKRO 2" }
+{ nisn: "0084298176", nama: "DAFFA ANDRIANTO", kelas: "12 TKRO 2" }
+{ nisn: "0095227135", nama: "FARHAN HIDAYAT", kelas: "12 TKRO 2" }
+{ nisn: "0086954317", nama: "HERDYAN ANGGA SAPUTRA", kelas: "12 TKRO 2" }
+{ nisn: "0083803797", nama: "IAN MAULANA ADINATA", kelas: "12 TKRO 2" }
+{ nisn: "0089197629", nama: "ISYA WAHYU PRASETYO", kelas: "12 TKRO 2" }
+{ nisn: "0081605463", nama: "M.KIKI FAREL", kelas: "12 TKRO 2" }
+{ nisn: "0089050240", nama: "MOCHAMMAD FAISAL", kelas: "12 TKRO 2" }
+{ nisn: "3062017994", nama: "MUCH FAHRIL NUR HIDAYAT", kelas: "12 TKRO 2" }
+{ nisn: "0084240032", nama: "MUHAMMAD RAYHAN", kelas: "12 TKRO 2" }
+{ nisn: "0086660973", nama: "MUHAMMAD SULTAN HAVIDZULLOH", kelas: "12 TKRO 2" }
+{ nisn: "0087454671", nama: "RADITMAS GUNTUR EKA PERMADI", kelas: "12 TKRO 2" }
+{ nisn: "0084439553", nama: "RAFFAEL ARKAAN BILAL DEVINZA", kelas: "12 TKRO 2" }
+{ nisn: "0083831551", nama: "RAIHAN SAPUTRA RAMADHANI", kelas: "12 TKRO 2" }
+{ nisn: "0086770984", nama: "RAMADHANI DWI PRASETYO", kelas: "12 TKRO 2" }
+{ nisn: "0082419945", nama: "RASHYA KURNIAWAN PRAMUDJI", kelas: "12 TKRO 2" }
+{ nisn: "0088292132", nama: "RENDY ANDRIAN FERDIANANTA", kelas: "12 TKRO 2" }
+{ nisn: "0087098255", nama: "REYHAN FEBRYAN NANDA", kelas: "12 TKRO 2" }
+{ nisn: "3096033066", nama: "VICKO HADIANSYAH PRATAMA", kelas: "12 TKRO 2" }
+{ nisn: "0084080941", nama: "WAHYUDA KURNIAWAN PUTRA", kelas: "12 TKRO 2" }
+{ nisn: "3085480664", nama: "WAYS RAMDHAN AL QORNIANSYAH", kelas: "12 TKRO 2" }
+{ nisn: "0084678678", nama: "YOUNGEN ISSA DARWIN ANANTA", kelas: "12 TKRO 2" }
+{ nisn: "0085153741", nama: "ZAINAL ARIFIN", kelas: "12 TKRO 2" }
+{ nisn: "0081046499", nama: "ZULKHAIDIR AL IFTHORI", kelas: "12 TKRO 2" }
+{ nisn: "0081065388", nama: "Agil Ade Firmansyah", kelas: "12 TKRO 3" }
+{ nisn: "0078407814", nama: "AHMAD HAMDAN ARIFIN", kelas: "12 TKRO 3" }
+{ nisn: "0089659164", nama: "Aman Dzakki Ali", kelas: "12 TKRO 3" }
+{ nisn: "0084481244", nama: "ARY BINTANG PRASETYA", kelas: "12 TKRO 3" }
+{ nisn: "0089291730", nama: "ARYA BODHI ADITTA PRATAMA", kelas: "12 TKRO 3" }
+{ nisn: "0091823714", nama: "BAGUS VALLEN SOENARTO", kelas: "12 TKRO 3" }
+{ nisn: "0089536917", nama: "DAVA GIO ALENDRA", kelas: "12 TKRO 3" }
+{ nisn: "0099283351", nama: "Denis Aditya Pamungkas", kelas: "12 TKRO 3" }
+{ nisn: "0096258142", nama: "DWIKA PRAMIRATYUDHA", kelas: "12 TKRO 3" }
+{ nisn: "0085983958", nama: "Fahril Anwar", kelas: "12 TKRO 3" }
+{ nisn: "0086905058", nama: "Fairus Alif", kelas: "12 TKRO 3" }
+{ nisn: "0083956295", nama: "HAIDARUL QOIS", kelas: "12 TKRO 3" }
+{ nisn: "0077563203", nama: "HASBI ASYYIDIQQI", kelas: "12 TKRO 3" }
+{ nisn: "0086623299", nama: "JIBRIEL ARIA PRADITA", kelas: "12 TKRO 3" }
+{ nisn: "0085464963", nama: "M AFGAN FITRA RAMADHAN", kelas: "12 TKRO 3" }
+{ nisn: "0085812238", nama: "MARCHEL YOSSI TANOTO", kelas: "12 TKRO 3" }
+{ nisn: "0089050930", nama: "MOCH. ARSHAVIN RAMADHANI", kelas: "12 TKRO 3" }
+{ nisn: "0095559810", nama: "MOCH. FATHUR ROZI", kelas: "12 TKRO 3" }
+{ nisn: "0084857063", nama: "MOH. AKBAR LUQMAN HAKIM", kelas: "12 TKRO 3" }
+{ nisn: "0081604500", nama: "MOHAMMAD CAHYO SAPUTRO", kelas: "12 TKRO 3" }
+{ nisn: "0083892259", nama: "MUHAMAD FAISAL AMIR YUNIOR", kelas: "12 TKRO 3" }
+{ nisn: "0084306199", nama: "MUHAMMAD ASRORI AKBAR", kelas: "12 TKRO 3" }
+{ nisn: "0093066405", nama: "MUHAMMAD ERFAN HASAN", kelas: "12 TKRO 3" }
+{ nisn: "0098775356", nama: "MUHAMMAD FADLY ARDIYANTO", kelas: "12 TKRO 3" }
+{ nisn: "3084519886", nama: "MUHAMMAD NUR SETO", kelas: "12 TKRO 3" }
+{ nisn: "3095077148", nama: "MUHAMMAD RIZKI MAULANA", kelas: "12 TKRO 3" }
+{ nisn: "0085111118", nama: "MUHAMMAD USULI", kelas: "12 TKRO 3" }
+{ nisn: "0098566877", nama: "NAZRIEL ADE RAJA", kelas: "12 TKRO 3" }
+{ nisn: "0081376185", nama: "RENO SETYAWAN JODI", kelas: "12 TKRO 3" }
+{ nisn: "3085199850", nama: "REYHAN ADYTYA PUTRA DEWANTO", kelas: "12 TKRO 3" }
+{ nisn: "0083058824", nama: "REYHAN RADITYA RAMADHANI", kelas: "12 TKRO 3" }
+{ nisn: "0094699908", nama: "SLAMET AKHMAD RIYADI", kelas: "12 TKRO 3" }
+{ nisn: "0089818379", nama: "WAHYU ALDIANSYAH", kelas: "12 TKRO 3" }
+{ nisn: "0082872262", nama: "ACHMAD IBRAHIM", kelas: "12 TKRO 4" }
+{ nisn: "0085357806", nama: "ACHMAD SHEVA ALFIANNO", kelas: "12 TKRO 4" }
+{ nisn: "0075402454", nama: "AHMAD FARHAN", kelas: "12 TKRO 4" }
+{ nisn: "0099584703", nama: "ALFINO ADITYA NUGROHO", kelas: "12 TKRO 4" }
+{ nisn: "0082518981", nama: "ANANDA ALFAREL LEONATA", kelas: "12 TKRO 4" }
+{ nisn: "0094057778", nama: "ANDIKA PUTRA PRATAMA", kelas: "12 TKRO 4" }
+{ nisn: "0084743178", nama: "ARDANISE SATRIA WARDANA", kelas: "12 TKRO 4" }
+{ nisn: "0083813071", nama: "ARYAN RIFQI ETZA EVALDO", kelas: "12 TKRO 4" }
+{ nisn: "0081834892", nama: "CHANDRA JULIAN SAPUTRA", kelas: "12 TKRO 4" }
+{ nisn: "0081407827", nama: "CHELSEA AL FAREZY", kelas: "12 TKRO 4" }
+{ nisn: "0083715884", nama: "CHIKAL NARA DANISWARA", kelas: "12 TKRO 4" }
+{ nisn: "0098752616", nama: "FAJAR SUBKHI FATWAN", kelas: "12 TKRO 4" }
+{ nisn: "0088285093", nama: "FARELINO SURYA PUTRA", kelas: "12 TKRO 4" }
+{ nisn: "0087901421", nama: "FARIDWAN ANINDRA", kelas: "12 TKRO 4" }
+{ nisn: "3082919887", nama: "FARIZ ANJAWARI", kelas: "12 TKRO 4" }
+{ nisn: "3098336144", nama: "FERDIANSYAH RIZKY PRASETYO DARMAWAN", kelas: "12 TKRO 4" }
+{ nisn: "0081814389", nama: "FIRNANDO ARUNG PUTRA PRATAMA", kelas: "12 TKRO 4" }
+{ nisn: "0093816980", nama: "GADING RAHMAD PRAKOSO", kelas: "12 TKRO 4" }
+{ nisn: "0074650027", nama: "IRWAN ARDIANSYAH ROJABI", kelas: "12 TKRO 4" }
+{ nisn: "0085086273", nama: "M. AZKA NAVIL NAZILY", kelas: "12 TKRO 4" }
+{ nisn: "3081776634", nama: "M. FAHRI FAIRUZ", kelas: "12 TKRO 4" }
+{ nisn: "0075205053", nama: "M. FIRDAN AL JAZAN", kelas: "12 TKRO 4" }
+{ nisn: "0083806227", nama: "MOCH. ARIEL MUSTOFA", kelas: "12 TKRO 4" }
+{ nisn: "0084640613", nama: "MOCH. RIZKI SYAHPUTRA", kelas: "12 TKRO 4" }
+{ nisn: "0086961657", nama: "MUHAMMAD DAFA RIZQILAH AKBAR", kelas: "12 TKRO 4" }
+{ nisn: "0093559790", nama: "MUHAMMAD DWI SANTOSO", kelas: "12 TKRO 4" }
+{ nisn: "0088808465", nama: "MUHAMMAD SATRIA PUTRA", kelas: "12 TKRO 4" }
+{ nisn: "0089095133", nama: "NIKO JELANG RAMADHAN ISNAEN PRATAMA", kelas: "12 TKRO 4" }
+{ nisn: "0084203974", nama: "RAMADHANI ZIKRI FIRMANSYAH", kelas: "12 TKRO 4" }
+{ nisn: "0073132165", nama: "RIDHO PUTRA HARNANDA", kelas: "12 TKRO 4" }
+{ nisn: "0085797941", nama: "RIO DE JENEIRO", kelas: "12 TKRO 4" }
+{ nisn: "0083820335", nama: "SAIFUL ADAM", kelas: "12 TKRO 4" }
+{ nisn: "0086505840", nama: "WISNU HAFIZH NUR RAHMAN", kelas: "12 TKRO 4" }
+{ nisn: "0089647404", nama: "ACHMAD NOVENDRA", kelas: "12 TPM 1" }
+{ nisn: "0072283033", nama: "ADITYA RISKY PRASETYO", kelas: "12 TPM 1" }
+{ nisn: "0085284253", nama: "Ahmad Rizki Ramadhani", kelas: "12 TPM 1" }
+{ nisn: "0082183946", nama: "ALAN AKBAR MAULANA", kelas: "12 TPM 1" }
+{ nisn: "0074813066", nama: "DAFFENDRA DWI MAULANA", kelas: "12 TPM 1" }
+{ nisn: "0086554001", nama: "DIMAS PRAYOGO", kelas: "12 TPM 1" }
+{ nisn: "0081680834", nama: "DWI MARDIANSYAH", kelas: "12 TPM 1" }
+{ nisn: "0083033429", nama: "IHRAM ANDHIKA IRWANSYAH", kelas: "12 TPM 1" }
+{ nisn: "0089783946", nama: "Iqmal Nevan Pradhitama", kelas: "12 TPM 1" }
+{ nisn: "0085491651", nama: "LANGGENG NUR ALIF YULIANSYAH", kelas: "12 TPM 1" }
+{ nisn: "0083015141", nama: "MOCH. FERDIANSYAH ASHARI", kelas: "12 TPM 1" }
+{ nisn: "0097880365", nama: "MOCH. RAFI ABIDIN", kelas: "12 TPM 1" }
+{ nisn: "0086455208", nama: "MOCHAMMAD ZAHY SAPOETRA", kelas: "12 TPM 1" }
+{ nisn: "0078064253", nama: "MUHAMMAD ANDREANSYAH", kelas: "12 TPM 1" }
+{ nisn: "0076791136", nama: "MUHAMMAD ARDHANA PAMBUDI", kelas: "12 TPM 1" }
+{ nisn: "0083365695", nama: "MUHAMMAD NURIL AHADI", kelas: "12 TPM 1" }
+{ nisn: "0095069404", nama: "MUHAMMAD RAFA'EL AQSA KURNIAWAN", kelas: "12 TPM 1" }
+{ nisn: "0087280284", nama: "MUHAMMAD RISQY KURNIAWAN", kelas: "12 TPM 1" }
+{ nisn: "0081057845", nama: "MUHAMMAD RIZAL ABIDIN", kelas: "12 TPM 1" }
+{ nisn: "0081730032", nama: "NATHAN DWI LIAMSYAH", kelas: "12 TPM 1" }
+{ nisn: "0084915818", nama: "NAUVAL FAITH RAFFI", kelas: "12 TPM 1" }
+{ nisn: "0088235207", nama: "NIZAR MAULANA YUSUF", kelas: "12 TPM 1" }
+{ nisn: "0083661239", nama: "PAUNDRA RIZKY RAMADHANI", kelas: "12 TPM 1" }
+{ nisn: "0085176527", nama: "RAFAEL NOVTA BASTIAN", kelas: "12 TPM 1" }
+{ nisn: "0083605672", nama: "RECKY ADITYA PRAYOGA", kelas: "12 TPM 1" }
+{ nisn: "0083618863", nama: "RENDYKA ACHMAD RAMADHANY", kelas: "12 TPM 1" }
+{ nisn: "0084953477", nama: "RICKY ARRIZAL RAHMAD PERDANA", kelas: "12 TPM 1" }
+{ nisn: "3098142801", nama: "RIFKI ALFIYAN ZAKARIYA", kelas: "12 TPM 1" }
+{ nisn: "3080918637", nama: "RISKI TERI GUNAWAN", kelas: "12 TPM 1" }
+{ nisn: "0073111274", nama: "RIZAL WAHYUDI", kelas: "12 TPM 1" }
+{ nisn: "0086333626", nama: "RIZAM ANDIKA PRATAMA", kelas: "12 TPM 1" }
+{ nisn: "0054372975", nama: "RIZKY TRIADIYATMA", kelas: "12 TPM 1" }
+{ nisn: "0098318530", nama: "SULTAN JAKA SAMUDERA", kelas: "12 TPM 1" }
+{ nisn: "0091019809", nama: "SYIFA' VALENTARA", kelas: "12 TPM 1" }
+{ nisn: "0095995887", nama: "Tunggal Bimo", kelas: "12 TPM 1" }
+{ nisn: "0081861320", nama: "Zaky Rodika Pratama", kelas: "12 TPM 1" }
+{ nisn: "0082709119", nama: "ACHMAD HASYIM NAHDI NAJIBULLAH", kelas: "12 TPM 2" }
+{ nisn: "0088178490", nama: "ADITYA HARTONO", kelas: "12 TPM 2" }
+{ nisn: "0086898497", nama: "AHMAD IKLI FAUZAN", kelas: "12 TPM 2" }
+{ nisn: "0094811548", nama: "AJI NUR HIDAYAT", kelas: "12 TPM 2" }
+{ nisn: "0084418265", nama: "ALIF SAIFUDIN", kelas: "12 TPM 2" }
+{ nisn: "0088631894", nama: "Alvinzha Rahman Aryansyah", kelas: "12 TPM 2" }
+{ nisn: "0091339484", nama: "ANDIKA WAHYU PRATAMA", kelas: "12 TPM 2" }
+{ nisn: "3097497256", nama: "ANDRA PANJI SAPUTRA", kelas: "12 TPM 2" }
+{ nisn: "0079406837", nama: "ARI AKBAR", kelas: "12 TPM 2" }
+{ nisn: "0089755039", nama: "BAYU SAMUIS SUBUR", kelas: "12 TPM 2" }
+{ nisn: "0087897539", nama: "Daniel Ardiansyah", kelas: "12 TPM 2" }
+{ nisn: "0081867340", nama: "DENY ARIYANTO", kelas: "12 TPM 2" }
+{ nisn: "0084502614", nama: "DICKY APRIANSYAH", kelas: "12 TPM 2" }
+{ nisn: "0082269012", nama: "Ervan Ardiansyah Pratama", kelas: "12 TPM 2" }
+{ nisn: "0084007452", nama: "FAHRI AINUR ROHMAN", kelas: "12 TPM 2" }
+{ nisn: "0088195246", nama: "FAWWAZ FACHRUR ROZY", kelas: "12 TPM 2" }
+{ nisn: "0087608006", nama: "GEMMAEL DESHENDRA POERNOMO", kelas: "12 TPM 2" }
+{ nisn: "0094986929", nama: "IKHDAR HAIDAR ALI", kelas: "12 TPM 2" }
+{ nisn: "0089609958", nama: "M. AZZAM RIZKI", kelas: "12 TPM 2" }
+{ nisn: "0074890065", nama: "M. Fikri Asyrof", kelas: "12 TPM 2" }
+{ nisn: "0082793547", nama: "MARSELINO SUDIN", kelas: "12 TPM 2" }
+{ nisn: "0089010093", nama: "MOCH. TAUFIQ HIDAYAH", kelas: "12 TPM 2" }
+{ nisn: "0088921511", nama: "MOCHAMMAD NUHKY DWI ADITYA", kelas: "12 TPM 2" }
+{ nisn: "0089964408", nama: "Mochammad Risky", kelas: "12 TPM 2" }
+{ nisn: "0092588814", nama: "Moh. Taufik Hidayah", kelas: "12 TPM 2" }
+{ nisn: "0085040690", nama: "MUHAMMAD AFANDI", kelas: "12 TPM 2" }
+{ nisn: "0095266310", nama: "MUHAMMAD ALAIKA BIDZAKA ILLAH", kelas: "12 TPM 2" }
+{ nisn: "0083163447", nama: "MUHAMMAD KAAFIYYURRAHMAN YAQIN", kelas: "12 TPM 2" }
+{ nisn: "0082764556", nama: "NABIL MAULANA FIRMANSAH", kelas: "12 TPM 2" }
+{ nisn: "0089666981", nama: "REZA MISDIANTO", kelas: "12 TPM 2" }
+{ nisn: "0086084255", nama: "RHEYHAN MAULANA RISKY", kelas: "12 TPM 2" }
+{ nisn: "0099539387", nama: "RIFQY FAZEL RAZZANI", kelas: "12 TPM 2" }
+{ nisn: "0084964599", nama: "SYAIPUL ULUM", kelas: "12 TPM 2" }
+{ nisn: "0091755556", nama: "TRIAWAN FAJAR REVANO", kelas: "12 TPM 2" }
+{ nisn: "0093024694", nama: "WAHYU DWI SYAFARUDIN", kelas: "12 TPM 2" }];
+
+        const video = document.getElementById('video');
+        const photoPreview = document.getElementById('photoPreview');
+        const canvas = document.getElementById('canvas');
+        const shutter = document.getElementById('shutter');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const locationText = document.getElementById('locationText');
+        const loading = document.getElementById('loading');
+        const historyList = document.getElementById('historyList');
+
+        let currentStatus = "Masuk";
+        let capturedImage = null;
+        let coords = { lat: 0, lng: 0 };
+
+        function handleLogin() {
+            const inputNisn = document.getElementById('loginNisn').value;
+            const siswa = SISWA_DATABASE.find(s => s.nisn === inputNisn);
+
+            if (siswa) {
+                document.getElementById('nisn').value = siswa.nisn;
+                document.getElementById('nama').value = siswa.nama;
+                document.getElementById('kelas').value = siswa.kelas;
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('mainPage').classList.remove('hidden');
+                startCamera();
+                getLocation();
+                loadHistory(siswa.nisn);
+            } else {
+                alert("NISN tidak ditemukan!");
+            }
+        }
+
+        function handleLogout() {
+            if(confirm("Apakah Anda ingin keluar?")) window.location.reload();
+        }
+
+        function setStatus(status) {
+            currentStatus = status;
+            const btnM = document.getElementById('btnMasuk');
+            const btnP = document.getElementById('btnPulang');
+            if(status === 'Masuk') {
+                btnM.className = "flex-1 py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 bg-blue-600 text-white shadow-md transition-all";
+                btnP.className = "flex-1 py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 text-gray-500 transition-all";
+            } else {
+                btnP.className = "flex-1 py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 bg-blue-600 text-white shadow-md transition-all";
+                btnM.className = "flex-1 py-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 text-gray-500 transition-all";
+            }
+            validateForm();
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                video.srcObject = stream;
+            } catch (e) {
+                alert("Izin kamera diperlukan.");
+            }
+        }
+
+        function takePhoto() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0);
+            capturedImage = canvas.toDataURL('image/jpeg', 0.8);
+            photoPreview.src = capturedImage;
+            video.classList.add('hidden');
+            photoPreview.style.display = 'block';
+            shutter.classList.add('hidden');
+            retakeBtn.classList.remove('hidden');
+            validateForm();
+        }
+
+        function retakePhoto() {
+            capturedImage = null;
+            video.classList.remove('hidden');
+            photoPreview.style.display = 'none';
+            shutter.classList.remove('hidden');
+            retakeBtn.classList.add('hidden');
+            validateForm();
+        }
+
+        function getLocation() {
+            locationText.innerText = "Mendeteksi posisi...";
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (p) => {
+                        coords.lat = p.coords.latitude;
+                        coords.lng = p.coords.longitude;
+                        locationText.innerText = `Terdeteksi: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
+                        locationText.className = "text-xs text-blue-600 font-bold";
+                        validateForm();
+                    },
+                    (e) => { locationText.innerText = "Gagal memuat GPS."; }
+                );
+            }
+        }
+
+        function validateForm() {
+            const isReady = capturedImage && coords.lat !== 0;
+            if (isReady) {
+                submitBtn.disabled = false;
+                submitBtn.className = "w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm tracking-widest flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all";
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.className = "w-full bg-gray-200 text-gray-400 py-4 rounded-2xl font-black text-sm tracking-widest flex items-center justify-center gap-3 transition-all";
+            }
+        }
+
+        function loadHistory(nisn) {
+            const history = JSON.parse(localStorage.getItem('absensi_history_' + nisn) || '[]');
+            if (history.length > 0) {
+                // Menampilkan riwayat dengan detail tanggal dan jam
+                historyList.innerHTML = history.reverse().slice(0, 5).map(item => `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 ${item.status === 'Masuk' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'} rounded-full flex items-center justify-center text-xs">
+                                <i class="fa-solid ${item.status === 'Masuk' ? 'fa-sign-in' : 'fa-sign-out'}"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-gray-800">Absen ${item.status}</p>
+                                <div class="flex flex-col">
+                                    <span class="text-[9px] text-gray-500 font-medium"><i class="fa-regular fa-calendar-check mr-1"></i> ${item.date}</span>
+                                    <span class="text-[9px] text-blue-600 font-bold"><i class="fa-regular fa-clock mr-1"></i> ${item.time}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-[8px] font-mono text-gray-400 bg-white px-2 py-1 rounded-lg shadow-sm border border-gray-100">
+                            TERSIMPAN
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function saveToLocalHistory(data) {
+            const nisn = data.nisn;
+            const history = JSON.parse(localStorage.getItem('absensi_history_' + nisn) || '[]');
+            const now = new Date();
+            
+            // Format Jam (HH:mm WIB)
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
+                            now.getMinutes().toString().padStart(2, '0') + ' WIB';
+            
+            // Format Tanggal (DD/MM/YYYY)
+            const dateStr = now.getDate().toString().padStart(2, '0') + '/' + 
+                            (now.getMonth() + 1).toString().padStart(2, '0') + '/' + 
+                            now.getFullYear();
+            
+            history.push({
+                status: data.status,
+                time: timeStr,
+                date: dateStr
+            });
+            
+            localStorage.setItem('absensi_history_' + nisn, JSON.stringify(history));
+        }
+
+        async function sendData() {
+            loading.style.display = "flex";
+            const data = {
+                nama: document.getElementById('nama').value,
+                nisn: document.getElementById('nisn').value,
+                kelas: document.getElementById('kelas').value,
+                status: currentStatus,
+                lat: coords.lat,
+                lng: coords.lng,
+                foto: capturedImage
+            };
+            try {
+                await fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    cache: 'no-cache',
+                    body: JSON.stringify(data) 
+                });
+                
+                saveToLocalHistory(data);
+                alert("Absensi " + currentStatus + " Berhasil!");
+                window.location.reload();
+            } catch (e) {
+                alert("Gagal terhubung ke Server.");
+            } finally {
+                loading.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
+
